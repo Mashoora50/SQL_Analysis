@@ -1,1 +1,293 @@
 # SQL_Analysis
+# 🛒 Retail Sales Analysis Using SQL
+
+## 📌 Project Overview
+
+This project focuses on analyzing retail sales data using **MySQL** to identify sales trends, customer purchasing behavior, product category performance, and business insights.
+
+The project involves data preprocessing, data cleaning, exploratory data analysis (EDA), and answering 12 business-related questions using SQL queries.
+
+The main objective is to extract meaningful insights from retail transaction data that can help businesses understand their sales performance and make data-driven decisions.
+
+---
+
+## 🛠️ Tools & Technologies
+
+- **Database:** MySQL
+- **Language:** SQL
+- **Concepts Used:**
+  - Data Cleaning & Preprocessing
+  - Data Exploration
+  - Aggregate Functions
+  - GROUP BY & ORDER BY
+  - WHERE & HAVING Clauses
+  - Date and Time Functions
+  - Subqueries
+  - Common Table Expressions (CTEs)
+  - Window Functions (RANK & DENSE_RANK)
+
+---
+
+## 📂 Dataset Description
+
+The dataset contains retail sales transaction records with the following columns:
+
+| Column Name | Description |
+|---|---|
+| transactions_id | Unique transaction ID |
+| sale_date | Date of the transaction |
+| sale_time | Time of the transaction |
+| customer_id | Unique customer ID |
+| gender | Customer gender |
+| age | Customer age |
+| category | Product category |
+| quantity | Number of items purchased |
+| price_per_unit | Price of each item |
+| cogs | Cost of goods sold |
+| total_sale | Total sales amount |
+
+---
+
+## 🧹 1. Data Cleaning & Preprocessing
+
+Before performing the analysis, the dataset was checked and cleaned to ensure data quality.
+
+The following steps were performed:
+
+- Created a database named `portfolio_sql_prjct`.
+- Imported the retail sales dataset into MySQL.
+- Inspected the dataset using `SELECT *` and `SHOW COLUMNS`.
+- Renamed the incorrectly encoded `transactions_id` column.
+- Checked the total number of records.
+- Identified unique values in gender and category columns.
+- Checked for NULL values in important columns.
+- Removed records where quantity was NULL.
+- Counted distinct customers and product categories.
+- Converted `sale_date` into the DATE data type.
+- Renamed the misspelled `quantiy` column to `quantity`.
+
+---
+
+## 📊 2. Exploratory Data Analysis (EDA)
+
+After cleaning the dataset, SQL queries were used to answer the following 12 business questions.
+
+### Q1. Retrieve all columns for sales made on November 5, 2022.
+
+**Objective:** Identify all transactions that occurred on a specific date.
+
+```sql
+SELECT *
+FROM retail_sales
+WHERE sale_date = '2022-11-05';
+```
+
+### Q2. Retrieve all transactions for Clothing made in November 2022 where the quantity sold is at least 4.
+
+**Objective:** Analyze clothing purchases with higher quantities during a specific month.
+
+```sql
+SELECT *
+FROM retail_sales
+WHERE category = 'Clothing'
+AND DATE_FORMAT(sale_date, '%Y-%m') = '2022-11'
+AND quantity >= 4;
+```
+
+### Q3. Calculate total sales and total orders for each product category.
+
+**Objective:** Understand the sales performance of each category.
+
+```sql
+SELECT
+    category,
+    SUM(total_sale) AS total_sales,
+    COUNT(*) AS total_orders
+FROM retail_sales
+GROUP BY category;
+```
+
+### Q4. Calculate the average age of customers who purchased products from the Beauty category.
+
+**Objective:** Understand the average age of customers purchasing beauty products.
+
+```sql
+SELECT ROUND(AVG(age), 2)
+FROM retail_sales
+WHERE category = 'Beauty';
+```
+
+### Q5. Find all transactions where the total sale amount is greater than or equal to 1000.
+
+**Objective:** Identify high-value transactions.
+
+```sql
+SELECT *
+FROM retail_sales
+WHERE total_sale >= 1000;
+```
+
+### Q6. Find the total number of transactions in each category where the total sale amount is greater than 1000.
+
+**Objective:** Identify categories generating high-value transactions.
+
+```sql
+SELECT
+    category,
+    COUNT(*) AS total_transactions
+FROM retail_sales
+WHERE total_sale > 1000
+GROUP BY category;
+```
+
+### Q7. Find the total number of transactions made by each gender in every category.
+
+**Objective:** Analyze purchasing behavior across different genders and product categories.
+
+```sql
+SELECT
+    category,
+    gender,
+    COUNT(*) AS total_transactions
+FROM retail_sales
+GROUP BY category, gender
+ORDER BY category;
+```
+
+### Q8. Find the average sales for each month and identify the best-selling month of every year.
+
+**Objective:** Analyze monthly sales performance and identify the highest-performing month annually.
+
+```sql
+SELECT *
+FROM (
+    SELECT
+        EXTRACT(YEAR FROM sale_date) AS year,
+        EXTRACT(MONTH FROM sale_date) AS month,
+        ROUND(AVG(total_sale), 2) AS avg_sale,
+        RANK() OVER (
+            PARTITION BY EXTRACT(YEAR FROM sale_date)
+            ORDER BY AVG(total_sale) DESC
+        ) AS rankbymonth
+    FROM retail_sales
+    GROUP BY 1, 2
+) AS t1
+WHERE rankbymonth = 1;
+```
+
+### Q9. Calculate total sales generated by each gender in every product category.
+
+**Objective:** Compare sales contributions across gender and product categories.
+
+```sql
+SELECT
+    gender,
+    category,
+    SUM(total_sale) AS total_sales
+FROM retail_sales
+GROUP BY gender, category
+ORDER BY 2, 3 DESC;
+```
+
+### Q10. Identify the top 3 customers based on their total sales.
+
+**Objective:** Identify the highest-value customers based on their overall spending.
+
+```sql
+SELECT
+    customer_id,
+    SUM(total_sale) AS tot_sale,
+    DENSE_RANK() OVER (
+        ORDER BY SUM(total_sale) DESC
+    ) AS ranked
+FROM retail_sales
+GROUP BY customer_id
+LIMIT 3;
+```
+
+### Q11. Find the number of unique customers in each product category.
+
+**Objective:** Understand customer distribution across different categories.
+
+```sql
+SELECT
+    category,
+    COUNT(DISTINCT customer_id) AS unique_customers
+FROM retail_sales
+GROUP BY category;
+```
+
+### Q12. Create shifts based on transaction time and calculate the number of orders in each shift.
+
+**Objective:** Analyze customer purchasing activity during different times of the day.
+
+**Shift Classification:**
+- Morning: Before 12 PM
+- Afternoon: 12 PM to 5 PM
+- Evening: After 5 PM
+
+```sql
+WITH hourly_purchase AS (
+    SELECT *,
+        CASE
+            WHEN EXTRACT(HOUR FROM sale_time) < 12
+                THEN 'Morning'
+            WHEN EXTRACT(HOUR FROM sale_time) BETWEEN 12 AND 17
+                THEN 'Afternoon'
+            ELSE 'Evening'
+        END AS shift
+    FROM retail_sales
+)
+SELECT
+    shift,
+    COUNT(*) AS total_orders
+FROM hourly_purchase
+GROUP BY shift;
+```
+
+---
+
+## 🎯 3. Key Business Objectives
+
+Through this analysis, the project aims to:
+
+- Identify high-performing product categories.
+- Understand customer purchasing patterns.
+- Analyze sales trends across different months and years.
+- Identify high-value transactions.
+- Find the top-spending customers.
+- Compare sales performance across genders.
+- Understand customer demographics for specific categories.
+- Identify peak shopping hours and daily sales patterns.
+
+---
+
+## 💡 4. Skills Demonstrated
+
+This project demonstrates practical knowledge of:
+
+- SQL Data Manipulation and Data Definition Language (DML & DDL).
+- Data Cleaning and Preprocessing.
+- Data Aggregation and Summarization.
+- Business-Oriented Problem Solving.
+- Customer Segmentation.
+- Sales Trend Analysis.
+- Advanced SQL using Window Functions.
+- CTEs and Subqueries.
+- Date and Time-Based Analysis.
+
+---
+
+## 🏁 5. Conclusion
+
+This Retail Sales Analysis project demonstrates how SQL can be used to transform raw retail transaction data into meaningful business insights.
+
+By performing data cleaning, exploratory data analysis, and solving 12 real-world business questions, the project highlights important aspects of retail performance, customer behavior, and sales trends.
+
+It also strengthened my practical understanding of SQL, particularly aggregate functions, joins of analytical concepts, CTEs, subqueries, and window functions.
+
+**This project is part of my Data Analytics portfolio and reflects my hands-on experience in using SQL for data analysis and business problem-solving.**
+
+---
+
+⭐ If you find this project useful, feel free to explore the SQL queries and share your feedback!
